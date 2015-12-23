@@ -12,6 +12,7 @@
 /*global define, module, ender*/
 (function(win, doc) {
     'use strict';
+    var forEach = Array.prototype.forEach;
     var Snap = Snap || function(userOpts) {
         var settings = {
             element: null,
@@ -30,6 +31,8 @@
             slideIntent: 40, // degrees
             minDragDistance: 5
         },
+        slideElements = null,
+        disabled = false,
         cache = {
             simpleStates: {
                 opening: null,
@@ -94,7 +97,7 @@
                 return (cache.vendor==='Moz' || cache.vendor==='ms') ? 'transitionend' : cache.vendor+'TransitionEnd';
             },
             canTransform: function(){
-                return typeof settings.element.style[cache.vendor+'Transform'] !== 'undefined';
+                return typeof slideElements[0].style[cache.vendor+'Transform'] !== 'undefined';
             },
             deepExtend: function(destination, source) {
                 var property;
@@ -130,8 +133,8 @@
                         return element.attachEvent("on" + eventName, func);
                     }
                 },
-                removeEvent: function addEvent(element, eventName, func) {
-                    if (element.addEventListener) {
+                removeEvent: function removeEvent(element, eventName, func) {
+                    if (element.removeEventListener) {
                         return element.removeEventListener(eventName, func, false);
                     } else if (element.attachEvent) {
                         return element.detachEvent("on" + eventName, func);
@@ -162,11 +165,10 @@
             translate: {
                 get: {
                     matrix: function(index) {
-
                         if( !utils.canTransform() ){
-                            return parseInt(settings.element.style.left, 10);
+                            return parseInt(slideElements[0].style.left, 10);
                         } else {
-                            var matrix = win.getComputedStyle(settings.element)[cache.vendor+'Transform'].match(/\((.*)\)/),
+                            var matrix = win.getComputedStyle(slideElements[0])[cache.vendor+'Transform'].match(/\((.*)\)/),
                                 ieOffset = 8;
                             if (matrix) {
                                 matrix = matrix[1].split(',');
@@ -180,7 +182,10 @@
                     }
                 },
                 easeCallback: function(){
-                    settings.element.style[cache.vendor+'Transition'] = '';
+                    slideElements.forEach(function(element) {
+                        element.style[cache.vendor+'Transition'] = '';
+                    });
+
                     cache.translation = action.translate.get.matrix(4);
                     cache.easing = false;
                     clearInterval(cache.animatingInterval);
@@ -191,10 +196,12 @@
                     }
 
                     utils.dispatchEvent('animated');
-                    utils.events.removeEvent(settings.element, utils.transitionCallback(), action.translate.easeCallback);
+
+                    slideElements.forEach(function(element) {
+                        utils.events.removeEvent(element, utils.transitionCallback(), action.translate.easeCallback);
+                    });
                 },
                 easeTo: function(n) {
-
                     if( !utils.canTransform() ){
                         cache.translation = n;
                         action.translate.x(n);
@@ -202,24 +209,26 @@
                         cache.easing = true;
                         cache.easingTo = n;
 
-                        settings.element.style[cache.vendor+'Transition'] = 'all ' + settings.transitionSpeed + 's ' + settings.easing;
+                        slideElements.forEach(function(element) {
+                            element.style[cache.vendor+'Transition'] = 'all ' + settings.transitionSpeed + 's ' + settings.easing;
+                        });
 
                         cache.animatingInterval = setInterval(function() {
                             utils.dispatchEvent('animating');
                         }, 1);
-                        
-                        utils.events.addEvent(settings.element, utils.transitionCallback(), action.translate.easeCallback);
+
+                        slideElements.forEach(function(element) {
+                            utils.events.addEvent(element, utils.transitionCallback(), action.translate.easeCallback);
+                        });
+
                         action.translate.x(n);
                     }
-                    if(n===0){
-                           settings.element.style[cache.vendor+'Transform'] = '';
-                       }
                 },
                 x: function(n) {
                     if( (settings.disable==='left' && n>0) ||
                         (settings.disable==='right' && n<0)
                     ){ return; }
-                    
+
                     if( !settings.hyperextensible ){
                         if( n===settings.maxPosition || n>settings.maxPosition ){
                             n=settings.maxPosition;
@@ -227,7 +236,7 @@
                             n=settings.minPosition;
                         }
                     }
-                    
+
                     n = parseInt(n, 10);
                     if(isNaN(n)){
                         n = 0;
@@ -235,12 +244,16 @@
 
                     if( utils.canTransform() ){
                         var theTranslate = 'translate3d(' + n + 'px, 0,0)';
-                        settings.element.style[cache.vendor+'Transform'] = theTranslate;
+                        slideElements.forEach(function(element) {
+                            element.style[cache.vendor+'Transform'] = theTranslate;
+                        });
                     } else {
-                        settings.element.style.width = (win.innerWidth || doc.documentElement.clientWidth)+'px';
+                        slideElements.forEach(function(element) {
+                            element.style.width = (win.innerWidth || doc.documentElement.clientWidth)+'px';
 
-                        settings.element.style.left = n+'px';
-                        settings.element.style.right = '';
+                            element.style.left = n+'px';
+                            element.style.right = '';
+                        });
                     }
                 }
             },
@@ -248,40 +261,46 @@
                 listen: function() {
                     cache.translation = 0;
                     cache.easing = false;
-                    utils.events.addEvent(settings.element, utils.eventType('down'), action.drag.startDrag);
-                    utils.events.addEvent(settings.element, utils.eventType('move'), action.drag.dragging);
-                    utils.events.addEvent(settings.element, utils.eventType('up'), action.drag.endDrag);
+                    slideElements.forEach(function(element) {
+                        utils.events.addEvent(element, utils.eventType('down'), action.drag.startDrag);
+                        utils.events.addEvent(element, utils.eventType('move'), action.drag.dragging);
+                        utils.events.addEvent(element, utils.eventType('up'), action.drag.endDrag);
+                    });
                 },
                 stopListening: function() {
-                    utils.events.removeEvent(settings.element, utils.eventType('down'), action.drag.startDrag);
-                    utils.events.removeEvent(settings.element, utils.eventType('move'), action.drag.dragging);
-                    utils.events.removeEvent(settings.element, utils.eventType('up'), action.drag.endDrag);
+                    slideElements.forEach(function(element) {
+                        utils.events.removeEvent(element, utils.eventType('down'), action.drag.startDrag);
+                        utils.events.removeEvent(element, utils.eventType('move'), action.drag.dragging);
+                        utils.events.removeEvent(element, utils.eventType('up'), action.drag.endDrag);
+                    });
                 },
                 startDrag: function(e) {
                     // No drag on ignored elements
                     var target = e.target ? e.target : e.srcElement,
                         ignoreParent = utils.parentUntil(target, 'data-snap-ignore');
-                    
-                    if (ignoreParent) {
+
+                    if (ignoreParent || disabled) {
                         utils.dispatchEvent('ignore');
                         return;
                     }
-                    
-                    
+
+
                     if(settings.dragger){
                         var dragParent = utils.parentUntil(target, settings.dragger);
-                        
+
                         // Only use dragger if we're in a closed state
-                        if( !dragParent && 
-                            (cache.translation !== settings.minPosition && 
+                        if( !dragParent &&
+                            (cache.translation !== settings.minPosition &&
                             cache.translation !== settings.maxPosition
                         )){
                             return;
                         }
                     }
-                    
+
                     utils.dispatchEvent('start');
-                    settings.element.style[cache.vendor+'Transition'] = '';
+                    slideElements.forEach(function(element) {
+                        element.style[cache.vendor+'Transition'] = '';
+                    });
                     cache.isDragging = true;
                     cache.hasIntent = null;
                     cache.intentChecked = false;
@@ -468,6 +487,7 @@
         init = function(opts) {
             if (opts.element) {
                 utils.deepExtend(settings, opts);
+                slideElements = Array.prototype.slice.call(settings.element.getElementsByClassName("slide"));
                 cache.vendor = utils.vendor();
                 action.drag.listen();
             }
@@ -526,10 +546,12 @@
 
         this.enable = function() {
             utils.dispatchEvent('enable');
+            disabled = false;
             action.drag.listen();
         };
         this.disable = function() {
             utils.dispatchEvent('disable');
+            disabled = true;
             action.drag.stopListening();
         };
 
