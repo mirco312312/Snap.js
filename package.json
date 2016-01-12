@@ -2,6 +2,7 @@
   "name": "im2m-snapjs",
   "version": "1.0.2",
   "description": "A Library for creating beautiful mobile shelfs in Javascript",
+  "author": "Jacob Kelley <jakie8@gmail.com>",
   "main": "snap.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
