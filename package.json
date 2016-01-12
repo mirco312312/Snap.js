@@ -1,5 +1,5 @@
 {
-  "name": "snapjs",
+  "name": "im2m-snapjs",
   "version": "1.0.1",
   "description": "A Library for creating beautiful mobile shelfs in Javascript",
   "main": "snap.js",
@@ -10,7 +10,9 @@
     "type": "git",
     "url": "git+https://github.com/mirco312312/Snap.js.git"
   },
-  "private": true,
+  "publishConfig": {
+    "registry": "https://crm.inside-m2m.de/nexus/content/repositories/insidem2m-npm-internal/"
+  },
   "bugs": {
     "url": "https://github.com/mirco312312/Snap.js/issues"
   },
